@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b1a3a">
+<title>STEP UP 毎日告知メーカー</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Zen+Kaku+Gothic+New:wght@500;700;900&family=Shippori+Mincho+B1:wght@800&display=swap">
+<style>
+:root{--bg:#0b1a3a;--panel:#12254d;--line:#27407a;--fg:#f1ead6;--muted:#9fb0d4;--gold:#e0b64f;--gold-ink:#1d1708;color-scheme:dark;
+  --font:"Zen Kaku Gothic New","Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--font);font-size:15px;padding-block:20px 40px;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.wrap{max-width:460px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+h1{font-size:17px;margin:0;font-weight:700;letter-spacing:.04em}
+.tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.tab{font:inherit;font-size:15px;font-weight:700;padding:12px;border-radius:10px;border:1px solid var(--line);background:#0e2046;color:var(--muted);cursor:pointer}
+.tab.on{color:var(--fg);border-color:var(--gold)}
+.preview{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;justify-content:center}
+canvas#cv{width:100%;max-width:300px;height:auto;border-radius:6px;background:#06102a}
+.guide{font-size:12px;color:var(--muted);text-align:center;margin-top:-6px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:16px}
+label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+.stepper{display:grid;grid-template-columns:64px 1fr 64px;gap:8px;align-items:stretch}
+.stepper button{font:inherit;font-size:28px;font-weight:700;border:1px solid var(--line);background:#0e2046;color:var(--fg);border-radius:10px;cursor:pointer;min-height:56px}
+.stepper output{display:flex;align-items:center;justify-content:center;font-size:34px;font-weight:700;background:#0e2046;border:1px solid var(--line);border-radius:10px}
+.stepper output small{font-size:15px;margin-left:6px;color:var(--muted);font-weight:500}
+select,input[type=text],input[type=password]{width:100%;font:inherit;font-size:16px;padding:12px;border-radius:10px;border:1px solid var(--line);background:#0e2046;color:var(--fg)}
+.btns{display:flex;flex-direction:column;gap:10px}
+.btn{display:block;text-align:center;text-decoration:none;font:inherit;font-size:16px;font-weight:700;padding:14px;border-radius:10px;border:1px solid var(--line);background:#0e2046;color:var(--fg);cursor:pointer}
+.btn.main{background:var(--gold);color:var(--gold-ink);border-color:var(--gold)}
+.btn.done{background:#f1e3b5;color:var(--gold-ink);border-color:#f1e3b5}
+.btn,.stepper button,.tab{-webkit-tap-highlight-color:transparent;touch-action:manipulation;box-shadow:0 4px 0 #040a1a;transition:transform .08s ease-out,box-shadow .08s ease-out}
+.btn.main{box-shadow:0 4px 0 #8a6d33}
+.btn:active,.stepper button:active,.tab:active{transform:translateY(3px);box-shadow:0 1px 0 #040a1a}
+.btn:focus-visible,.tab:focus-visible,input:focus-visible,select:focus-visible,.stepper button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){.btn,.stepper button,.tab{transition:none}}
+.msg{font-size:13px;color:var(--muted);min-height:1.4em}
+.status{font-size:13px;color:var(--muted)}
+.status b{color:var(--fg)}
+.note{font-size:12px;color:var(--muted)}
+details summary{cursor:pointer;font-size:13px;color:var(--muted)}
+.saved{display:none;flex-direction:column;gap:8px;align-items:center}
+.saved.on{display:flex}
+.saved img{max-width:100%;border-radius:6px;border:1px solid var(--line)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>STEP UP 毎日告知メーカー</h1>
+
+  <div class="tabs" role="tablist">
+    <button class="tab on" id="tabS" role="tab" aria-selected="true">ストーリー 9:16</button>
+    <button class="tab" id="tabL" role="tab" aria-selected="false">LINE 1:1</button>
+  </div>
+  <div class="preview"><canvas id="cv" width="1080" height="1920"></canvas></div>
+  <div class="guide" id="guide">ストーリー用(1080×1920)のプレビューです</div>
+
+  <div class="card">
+    <div class="status" id="status">数字を取得しています…</div>
+    <div>
+      <label>今週の合計半荘数(昨日まで)</label>
+      <div class="stepper">
+        <button id="minus" aria-label="1つ減らす">−</button>
+        <output id="count">0<small>半荘</small></output>
+        <button id="plus" aria-label="1つ増やす">＋</button>
+      </div>
+    </div>
+    <div>
+      <label for="next">次の段</label>
+      <select id="next"></select>
+    </div>
+    <button class="btn" id="refetch">もう一度、自動で取得する</button>
+  </div>
+
+  <details class="card" id="cfg">
+    <summary>最初の設定(この端末に1回だけ)</summary>
+    <div>
+      <label for="url">フリー記録のURL(…/exec)</label>
+      <input id="url" type="text" inputmode="url" autocomplete="off" autocapitalize="off">
+    </div>
+    <div>
+      <label for="pin">合言葉</label>
+      <input id="pin" type="password" autocomplete="off">
+    </div>
+    <button class="btn" id="saveCfg">設定を保存して、取得する</button>
+    <div class="note">URLと合言葉は、この端末の中にだけ保存されます。ほかの人には見えません。</div>
+  </details>
+
+  <div class="btns">
+    <button class="btn main" id="saveStory">ストーリー用を保存(1080×1920)</button>
+    <button class="btn main" id="saveLine">LINE用を保存(1:1・1080×1080)</button>
+    <a class="btn" id="openIg" href="instagram://story-camera">Instagramを開く(ストーリー)</a>
+    <div class="note">Instagramは、いま選んでいるアカウントで開きます。投稿の前に、アプリのプロフィール画像を長押しして、麻雀ナインに切り替えておいてください。</div>
+    <div class="msg" id="msg" role="status"></div>
+  </div>
+
+  <div class="saved" id="saved">
+    <div class="msg">保存画面が出ないときは、下の画像を長押しして保存してください。</div>
+    <img id="savedImg" alt="書き出した画像">
+  </div>
+</div>
+
+<script>
+(function(){
+  var $=function(id){return document.getElementById(id)};
+  var cv=$('cv'), ctx=cv.getContext('2d');
+  var FONT='"Zen Kaku Gothic New","Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif';
+  var SERIF='"Cinzel","Times New Roman",serif';
+  var qs=new URLSearchParams(location.search);
+  var DRAW_TITLE=false; // タイトルは背景画像(ポスターのロゴ)に入っている
+  var DEMO=qs.has('demo'), BARE=qs.has('bare');
+  var mode=qs.get('m')==='l'?'l':'s';
+  var H={s:1920,l:1080};
+  var BGSRC={s:'bg_story.png',l:'bg_square.png'};
+  var bg={s:null,l:null};
+  var data={total:0,next:80,steps:[80,100],today:null,weekStart:null,weekEnd:null,monday:false};
+
+  // レイアウト(1080幅の座標)。背景画像の面に合わせて、文字を置く位置を決めている
+  var L={
+    s:{ titleCx:540, titleW:600, nineY:215, nineSize:104, stepY:305,
+        ribbonCy:401, ribbonK:0.00033, ribbonSize:58, labelSize:56,
+        plLabelY:760, plNumY:1112, plNumSize:400, plNumMaxW:820, plCx:542,
+        stLineY:1408, stLineSize:46, stPairY:1548, stCy:1462, slogSize:60, stPairSize:150, stMaxW:560, stCx:540,
+        dateY:1712, dateSize:40 },
+    l:{ titleCx:540, titleW:520, nineY:105, nineSize:80, stepY:170,
+        ribbonCy:248, ribbonK:0.0002, ribbonSize:44, labelSize:46,
+        plLabelY:448, plNumY:655, plNumSize:230, plNumMaxW:760, plCx:545,
+        stLineY:818, stLineSize:40, stPairY:915, stCy:844, slogSize:52, stPairSize:100, stMaxW:540, stCx:540,
+        dateY:1032, dateSize:30 }
+  };
+
+  // ---------- 保存してある設定 ----------
+  function lsGet(k){ try{ return localStorage.getItem(k)||''; }catch(e){ return ''; } }
+  function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
+  $('url').value=lsGet('sd_url'); $('pin').value=lsGet('sd_pin');
+  if(!$('url').value||!$('pin').value) $('cfg').open=true;
+
+  // ---------- 日付 ----------
+  var WD=['日','月','火','水','木','金','土'];
+  function ymdParse(s){ var p=String(s).split('-'); return new Date(Date.UTC(+p[0],+p[1]-1,+p[2])); }
+  function md(d){ return (d.getUTCMonth()+1)+'/'+d.getUTCDate(); }
+  function mdw(d){ return md(d)+'('+WD[d.getUTCDay()]+')'; }
+  function todayYmd(){
+    if(data.today) return data.today;
+    var n=new Date(Date.now()+9*3600*1000-6*3600*1000);
+    return n.getUTCFullYear()+'-'+('0'+(n.getUTCMonth()+1)).slice(-2)+'-'+('0'+n.getUTCDate()).slice(-2);
+  }
+  function weekStart(){ var t=ymdParse(todayYmd()), diff=(t.getUTCDay()+6)%7; return new Date(t.getTime()-diff*86400000); }
+  function weekRange(){
+    var t=ymdParse(todayYmd()), diff=(t.getUTCDay()+6)%7;
+    var a=new Date(t.getTime()-diff*86400000), b=new Date(a.getTime()+6*86400000);
+    return md(a)+'〜'+md(b);
+  }
+  function yesterday(){ return new Date(ymdParse(todayYmd()).getTime()-86400000); }
+  function isMonday(){ return ymdParse(todayYmd()).getUTCDay()===1; }
+
+  // ---------- 描画 ----------
+  function ensureFonts(){
+    if(!document.fonts||!document.fonts.load) return Promise.resolve();
+    var SLOG='みんなで打って、クーポン！'; var s='昨日までの半荘数今週スタート目指せ次の段まであと全て達成おめでとう集計みんなで打ってクーポン0123456789/()〜日月火水木金土NINESTEPUPCHALLENGE';
+    return Promise.all([document.fonts.load('500 40px "Zen Kaku Gothic New"',s),document.fonts.load('700 40px "Zen Kaku Gothic New"',s),document.fonts.load('900 40px "Zen Kaku Gothic New"',s),document.fonts.load('900 40px "Cinzel"','NINE STEP UP CHALLENGE'),document.fonts.load('800 40px "Shippori Mincho B1"',SLOG)]).catch(function(){});
+  }
+  function loadBg(m){
+    return new Promise(function(res){
+      if(bg[m]) return res();
+      var im=new Image(); im.onload=function(){bg[m]=im;res();}; im.onerror=function(){res();}; im.src=BGSRC[m];
+    });
+  }
+  function drawBase(c,m){
+    var h=H[m];
+    if(bg[m]){
+      var im=bg[m], r=Math.max(1080/im.width,h/im.height), w=im.width*r, hh=im.height*r;
+      c.drawImage(im,(1080-w)/2,(h-hh)/2,w,hh);
+    }else{
+      var g=c.createLinearGradient(0,0,0,h); g.addColorStop(0,'#10285a'); g.addColorStop(1,'#071433');
+      c.fillStyle=g; c.fillRect(0,0,1080,h);
+    }
+  }
+  // 文字(縁取り+影つき)。濃い文字は薄い縁、明るい文字は濃い影
+  function txt(c,s,x,y,size,weight,fill,stroke,font,align){
+    c.font=weight+' '+size+'px '+(font||FONT); c.textAlign=align||'center'; c.textBaseline='alphabetic';
+    c.lineJoin='round';
+    if(stroke){ c.lineWidth=Math.max(3,size*0.07); c.strokeStyle=stroke; c.strokeText(s,x,y); }
+    c.fillStyle=fill; c.fillText(s,x,y);
+  }
+  // リボンの曲線(中央が高く、左右が下がる放物線)に沿って、1文字ずつ傾けて並べる
+  function arcText(c,s,cx,cy0,k,size,weight,fill,spacing){
+    c.font=weight+' '+size+'px '+FONT; c.textAlign='center'; c.textBaseline='middle';
+    var chars=Array.from(s), ws=chars.map(function(ch){return c.measureText(ch).width+spacing;});
+    var total=ws.reduce(function(a,b){return a+b;},0)-spacing, x=cx-total/2;
+    chars.forEach(function(ch,i){
+      var mx=x+ws[i]/2-spacing/2, dx=mx-cx, y=cy0+k*dx*dx, ang=Math.atan(2*k*dx);
+      c.save(); c.translate(mx,y); c.rotate(ang); c.fillStyle=fill; c.fillText(ch,0,size*0.04); c.restore();
+      x+=ws[i];
+    });
+  }
+  // スローガン: 明朝の太字(Shippori Mincho B1)・赤・白い縁取り。1文字ずつ字間をあけて中央に置く
+  var MINCHO='"Shippori Mincho B1","Yu Mincho","Hiragino Mincho ProN",serif';
+  function slogLine(c,s,cx,y,size,sp){
+    c.font='800 '+size+'px '+MINCHO; c.textAlign='left'; c.textBaseline='alphabetic'; c.lineJoin='round';
+    var chars=Array.from(s), ws=chars.map(function(ch){return c.measureText(ch).width;});
+    var total=ws.reduce(function(a,b){return a+b;},0)+sp*(chars.length-1), x=cx-total/2;
+    var g=c.createLinearGradient(0,y-size*0.85,0,y+size*0.15); g.addColorStop(0,'#C8142B'); g.addColorStop(1,'#8E0A1E');
+    c.save(); c.lineWidth=6; c.strokeStyle='#FFFFFF'; c.shadowColor='rgba(16,34,74,.25)'; c.shadowBlur=0; c.shadowOffsetY=3;
+    var px=x; chars.forEach(function(ch,i){ c.strokeText(ch,px,y); px+=ws[i]+sp; }); c.restore();
+    px=x; c.fillStyle=g; chars.forEach(function(ch,i){ c.fillText(ch,px,y); px+=ws[i]+sp; });
+  }
+  function fit(c,s,size,weight,maxW,font){
+    c.font=weight+' '+size+'px '+(font||FONT);
+    var w=c.measureText(s).width; return w>maxW? Math.floor(size*maxW/w) : size;
+  }
+  function goldGrad(c,y,size){
+    var g=c.createLinearGradient(0,y-size,0,y); g.addColorStop(0,'#fff3c4'); g.addColorStop(.5,'#f3c64d'); g.addColorStop(1,'#b9801c'); return g;
+  }
+  // 大きい数字+小さい単位を1行にして、中央に置く(幅に収まるよう数字を縮める)
+  function pair(c,pre,big,post,y,bigSize,smallSize,maxW,cx,fill,stroke){
+    var preW=0,postW=0, gap=smallSize*0.12;
+    var size=bigSize;
+    for(var i=0;i<40;i++){
+      c.font='700 '+smallSize+'px '+FONT; preW=pre?c.measureText(pre).width+gap:0; postW=post?c.measureText(post).width+gap:0;
+      c.font='900 '+size+'px '+FONT; var bw=c.measureText(big).width;
+      if(preW+bw+postW<=maxW) break; size-=8;
+    }
+    c.font='900 '+size+'px '+FONT; var bw2=c.measureText(big).width;
+    var x=cx-(preW+bw2+postW)/2;
+    if(pre) txt(c,pre,x,y,smallSize,700,fill,stroke,FONT,'left');
+    txt(c,big,x+preW,y,size,900,fill,stroke,FONT,'left');
+    if(post) txt(c,post,x+preW+bw2+gap,y,smallSize,700,fill,stroke,FONT,'left');
+  }
+
+  function drawText(c,m){
+    var P=L[m], total=data.total, next=data.next, monday=isMonday()&&total===0;
+    var NAVY='#10224a', NAVYS='rgba(255,246,214,.75)';
+    // タイトル(2行)。背景にポスターのロゴが入ったら、DRAW_TITLE を false にする
+    if(DRAW_TITLE){ c.save(); c.shadowColor='rgba(0,0,0,.55)'; c.shadowBlur=14; c.shadowOffsetY=4;
+    txt(c,'NINE',P.titleCx,P.nineY,P.nineSize,900,goldGrad(c,P.nineY,P.nineSize),null,SERIF);
+    var s2=fit(c,'STEP UP CHALLENGE',P.nineSize*0.62,900,P.titleW,SERIF);
+    txt(c,'STEP UP CHALLENGE',P.titleCx,P.stepY,s2,900,goldGrad(c,P.stepY,s2),null,SERIF);
+    c.restore(); }
+    // リボン
+    c.save(); c.shadowColor='rgba(60,0,0,.7)'; c.shadowBlur=8; c.shadowOffsetY=3;
+    arcText(c,monday?'今週スタート！':'昨日までの半荘数',540,P.ribbonCy,P.ribbonK*0.55,P.ribbonSize,900,'#fff6dc',P.ribbonSize*(monday?0.0:0.08));
+    c.restore();
+    // 金の銘板
+    if(monday){
+      var lb1=mdw(weekStart())+'〜'+mdw(new Date(weekStart().getTime()+6*86400000))+'の目標'; txt(c,lb1,P.plCx,P.plLabelY,fit(c,lb1,P.labelSize,700,P.plNumMaxW),700,NAVY,NAVYS);
+      pair(c,'',String(next),'半荘',P.plNumY,P.plNumSize,P.plNumSize*0.26,P.plNumMaxW,P.plCx,NAVY,NAVYS);
+    }else{
+      var ws=weekStart(), yd=yesterday(); var lb2=(yd.getTime()<=ws.getTime()?mdw(yd):mdw(ws)+'〜'+mdw(yd))+'の合計'; txt(c,lb2,P.plCx,P.plLabelY,fit(c,lb2,P.labelSize,700,P.plNumMaxW),700,NAVY,NAVYS);
+      pair(c,'',String(total),'半荘',P.plNumY,P.plNumSize,P.plNumSize*0.26,P.plNumMaxW,P.plCx,NAVY,NAVYS);
+    }
+    // 銀の台
+    if(monday){
+      var sz=P.slogSize, lh=sz*1.28, cy=P.stCy;
+      slogLine(c,'みんなで打って、',P.stCx+sz*0.15,cy-lh/2+sz*0.36,sz,2);
+      slogLine(c,'みんなでクーポン！',P.stCx,cy+lh/2+sz*0.36,sz,2);
+    }else if(next>0){
+      txt(c,'次の段 '+next+'半荘まで',P.stCx,P.stLineY,fit(c,'次の段 '+next+'半荘まで',P.stLineSize,700,P.stMaxW),700,NAVY,NAVYS);
+      pair(c,'あと',String(Math.max(0,next-total)),'半荘',P.stPairY,P.stPairSize,P.stPairSize*0.38,P.stMaxW,P.stCx,'#b3141d','rgba(255,255,255,.85)');
+    }else{
+      txt(c,'今週の段は、すべて達成!',P.stCx,P.stCy+P.stPairSize*0.17,fit(c,'今週の段は、すべて達成!',P.stPairSize*0.5,900,P.stMaxW+60),900,'#b3141d','rgba(255,255,255,.85)');
+    }
+  }
+
+  var seq=0;
+  function draw(){
+    var my=++seq;
+    Promise.all([ensureFonts(),loadBg(mode)]).then(function(){
+      if(my!==seq) return;
+      cv.height=H[mode]; cv.style.aspectRatio='1080 / '+H[mode];
+      ctx.clearRect(0,0,1080,H[mode]);
+      drawBase(ctx,mode); drawText(ctx,mode);
+      warm();
+    });
+  }
+
+  // ---------- 保存(共有シート用に、先にPNGを用意しておく) ----------
+  var cache={s:null,l:null}, warmTimer=null, warmVer=0;
+  function exportBlob(m){
+    return Promise.all([ensureFonts(),loadBg(m)]).then(function(){
+      var c=document.createElement('canvas'); c.width=1080; c.height=H[m];
+      var x=c.getContext('2d'); drawBase(x,m); drawText(x,m);
+      return new Promise(function(res){ c.toBlob(res,'image/png'); });
+    });
+  }
+  function fname(m){ return 'stepup-'+(m==='l'?'line':'story')+'.png'; }
+  function warm(){
+    cache={s:null,l:null}; var v=++warmVer; clearTimeout(warmTimer);
+    warmTimer=setTimeout(function(){
+      ['s','l'].forEach(function(m){
+        exportBlob(m).then(function(b){
+          if(b&&v===warmVer){ try{ cache[m]=new File([b],fname(m),{type:'image/png'}); }catch(e){} }
+        });
+      });
+    },400);
+  }
+  function canShareFile(f){
+    try{ return !!(f&&navigator.canShare&&navigator.share&&window.matchMedia('(pointer:coarse)').matches&&navigator.canShare({files:[f]})); }catch(e){ return false; }
+  }
+  function setMsg(s){ $('msg').textContent=s; }
+  function flash(btn,text){
+    if(!btn) return;
+    if(btn._t){ clearTimeout(btn._t); } else { btn._label=btn.textContent; }
+    btn.textContent='✓ '+text; btn.classList.add('done');
+    btn._t=setTimeout(function(){ btn.textContent=btn._label; btn.classList.remove('done'); btn._t=null; },2000);
+  }
+  function showFallback(blob){ try{ $('savedImg').src=URL.createObjectURL(blob); $('saved').classList.add('on'); }catch(e){} }
+  function save(m,btn){
+    var f=cache[m];
+    if(canShareFile(f)){
+      showFallback(f);
+      navigator.share({files:[f]}).then(function(){ flash(btn,'完了しました'); setMsg('「画像を保存」を選ぶと、写真に入ります。'); },function(e){
+        if(e&&e.name==='AbortError'){ setMsg('キャンセルしました。'); } else { setMsg('開けませんでした。下の画像を長押しして保存してください。'); }
+      });
+      return;
+    }
+    setMsg('画像を作っています…');
+    exportBlob(m).then(function(blob){
+      if(!blob){ setMsg('画像を作れませんでした。もう一度お試しください。'); return; }
+      showFallback(blob);
+      try{ var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=fname(m); document.body.appendChild(a); a.click(); a.remove(); flash(btn,'保存しました'); setMsg('保存しました。保存されないときは、下の画像を長押しして保存してください。'); }catch(e){ setMsg('下の画像を長押しして保存してください。'); }
+    });
+  }
+
+  // ---------- 数字の自動取得 ----------
+  function fillNext(){
+    var sel=$('next'); sel.innerHTML='';
+    var steps=data.steps.slice(); if(steps.indexOf(data.next)<0&&data.next>0) steps.push(data.next);
+    steps.sort(function(a,b){return a-b;});
+    steps.forEach(function(s){ var o=document.createElement('option'); o.value=s; o.textContent=s+'半荘'; sel.appendChild(o); });
+    var o0=document.createElement('option'); o0.value=0; o0.textContent='すべて達成'; sel.appendChild(o0);
+    sel.value=String(data.next);
+  }
+  function refresh(){ $('count').innerHTML=data.total+'<small>半荘</small>'; fillNext(); draw(); }
+  function setStatus(html){ $('status').innerHTML=html; }
+  function fetchData(){
+    var url=$('url').value.trim(), pin=$('pin').value;
+    if(DEMO){ data.total=qs.has('total')?+qs.get('total'):41; data.next=qs.has('next')?+qs.get('next'):80; data.today=qs.get('today')||'2026-11-18'; setStatus('試験用の数字です。'); refresh(); return; }
+    if(!url||!pin){ setStatus('<b>最初の設定</b>に、URLと合言葉を入れてください。数字は、手で入れても使えます。'); refresh(); return; }
+    setStatus('数字を取得しています…');
+    var u=url+(url.indexOf('?')<0?'?':'&')+'daily=1&pin='+encodeURIComponent(pin);
+    fetch(u,{redirect:'follow'}).then(function(r){ return r.json(); }).then(function(j){
+      if(!j.ok){ setStatus('取得できませんでした: '+(j.error||'')+'。数字は、手で入れてください。'); refresh(); return; }
+      data.total=j.total; data.next=j.next; data.steps=j.steps||data.steps; data.today=j.today; data.weekStart=j.weekStart; data.weekEnd=j.weekEnd;
+      setStatus('<b>自動で取得しました</b>(今週 '+j.weekStart.slice(5).replace('-','/')+'〜 / 昨日まで)。違うときは、下で直せます。');
+      refresh();
+    }).catch(function(){
+      setStatus('自動で取得できませんでした。数字を手で入れてください(あとで、もう一度、自動取得もできます)。'); refresh();
+    });
+  }
+
+  // ---------- 操作 ----------
+  function setMode(m){
+    mode=m;
+    $('tabS').classList.toggle('on',m==='s'); $('tabL').classList.toggle('on',m==='l');
+    $('tabS').setAttribute('aria-selected',m==='s'); $('tabL').setAttribute('aria-selected',m==='l');
+    $('guide').textContent= m==='s' ? 'ストーリー用(1080×1920)のプレビューです' : 'LINE用(1:1・1080×1080)のプレビューです';
+    draw();
+  }
+  $('tabS').onclick=function(){ setMode('s'); };
+  $('tabL').onclick=function(){ setMode('l'); };
+  $('plus').onclick=function(){ data.total=Math.min(999,data.total+1); refresh(); };
+  $('minus').onclick=function(){ data.total=Math.max(0,data.total-1); refresh(); };
+  $('next').addEventListener('change',function(){ data.next=+$('next').value; draw(); });
+  $('refetch').onclick=function(){ fetchData(); };
+  $('saveCfg').onclick=function(){ lsSet('sd_url',$('url').value.trim()); lsSet('sd_pin',$('pin').value); $('cfg').open=false; fetchData(); };
+  $('saveStory').onclick=function(){ save('s',this); };
+  $('saveLine').onclick=function(){ save('l',this); };
+
+  if(BARE){ // 確認用: 画面の部品を消して、画像だけを実寸で表示する
+    document.querySelector('.wrap').style.display='none';
+    document.body.style.padding='0'; document.body.appendChild(cv);
+    cv.style.cssText='display:block;width:1080px;max-width:none;border-radius:0';
+  }
+  setMode(mode);
+  fetchData();
+})();
+</script>
+</body>
+</html>
