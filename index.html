@@ -83,7 +83,7 @@ details summary{cursor:pointer;font-size:13px;color:var(--muted)}
       </select>
     </div>
     <div id="prevBox" style="display:none">
-      <label>先週の合計半荘数(手で入れます)</label>
+      <label id="prevLabel">先週の合計半荘数</label>
       <div class="stepper">
         <button id="prevMinus" aria-label="1つ減らす">−</button>
         <output id="prevCount">0<small>半荘</small></output>
@@ -374,6 +374,7 @@ details summary{cursor:pointer;font-size:13px;color:var(--muted)}
     fetch(u,{redirect:'follow'}).then(function(r){ return r.json(); }).then(function(j){
       if(!j.ok){ setStatus('取得できませんでした: '+(j.error||'')+'。数字は、手で入れてください。'); refresh(); return; }
       data.total=j.total; data.next=j.next; data.steps=j.steps||data.steps; data.today=j.today; data.weekStart=j.weekStart; data.weekEnd=j.weekEnd;
+      if(typeof j.prevTotal==='number'){ data.prev=j.prevTotal; data.prevAuto=true; showView(); }
       setStatus('<b>自動で取得しました</b>(今週 '+j.weekStart.slice(5).replace('-','/')+'〜 / 昨日まで)。違うときは、下で直せます。');
       refresh();
     }).catch(function(){
@@ -395,10 +396,10 @@ details summary{cursor:pointer;font-size:13px;color:var(--muted)}
   $('minus').onclick=function(){ data.total=Math.max(0,data.total-1); refresh(); };
   $('next').addEventListener('change',function(){ data.next=+$('next').value; draw(); });
   $('refetch').onclick=function(){ fetchData(); };
-  function showView(){ $('view').value=data.view; $('prevBox').style.display=data.view==='result'?'':'none'; $('prevCount').innerHTML=data.prev+'<small>半荘</small>'; }
+  function showView(){ $('view').value=data.view; $('prevBox').style.display=data.view==='result'?'':'none'; $('prevCount').innerHTML=data.prev+'<small>半荘</small>'; $('prevLabel').textContent=data.prevAuto?'先週の合計半荘数(自動で入っています。違うときは、手で直せます)':'先週の合計半荘数(手で入れます)'; }
   $('view').addEventListener('change',function(){ data.view=$('view').value; showView(); draw(); });
-  $('prevPlus').onclick=function(){ data.prev=Math.min(999,data.prev+1); showView(); draw(); };
-  $('prevMinus').onclick=function(){ data.prev=Math.max(0,data.prev-1); showView(); draw(); };
+  $('prevPlus').onclick=function(){ data.prevAuto=false; data.prev=Math.min(999,data.prev+1); showView(); draw(); };
+  $('prevMinus').onclick=function(){ data.prevAuto=false; data.prev=Math.max(0,data.prev-1); showView(); draw(); };
   $('saveCfg').onclick=function(){ lsSet('sd_url',$('url').value.trim()); lsSet('sd_pin',$('pin').value); $('cfg').open=false; fetchData(); };
   $('saveStory').onclick=function(){ save('s',this); };
   $('saveLine').onclick=function(){ save('l',this); };
