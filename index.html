@@ -74,6 +74,24 @@ details summary{cursor:pointer;font-size:13px;color:var(--muted)}
     <button class="btn" id="refetch">もう一度、自動で取得する</button>
   </div>
 
+  <div class="card">
+    <div>
+      <label for="view">表示の種類</label>
+      <select id="view">
+        <option value="auto">いつもの表示(月曜は「今週スタート」)</option>
+        <option value="result">先週の結果と、今週こそ</option>
+      </select>
+    </div>
+    <div id="prevBox" style="display:none">
+      <label>先週の合計半荘数(手で入れます)</label>
+      <div class="stepper">
+        <button id="prevMinus" aria-label="1つ減らす">−</button>
+        <output id="prevCount">0<small>半荘</small></output>
+        <button id="prevPlus" aria-label="1つ増やす">＋</button>
+      </div>
+    </div>
+  </div>
+
   <details class="card" id="cfg">
     <summary>最初の設定(この端末に1回だけ)</summary>
     <div>
@@ -115,7 +133,7 @@ details summary{cursor:pointer;font-size:13px;color:var(--muted)}
   var H={s:1920,l:1080};
   var BGSRC={s:'bg_story.png',l:'bg_square.png'};
   var bg={s:null,l:null};
-  var data={total:0,next:80,steps:[80,100],today:null,weekStart:null,weekEnd:null,monday:false};
+  var data={total:0,next:80,steps:[80,100],today:null,weekStart:null,weekEnd:null,monday:false,view:'auto',prev:0};
 
   // レイアウト(1080幅の座標)。背景画像の面に合わせて、文字を置く位置を決めている
   var L={
@@ -231,7 +249,7 @@ details summary{cursor:pointer;font-size:13px;color:var(--muted)}
   }
 
   function drawText(c,m){
-    var P=L[m], total=data.total, next=data.next, monday=isMonday()&&total===0;
+    var P=L[m], total=data.total, next=data.next, result=data.view==='result', monday=!result&&isMonday()&&total===0;
     var NAVY='#10224a', NAVYS='rgba(255,246,214,.75)';
     // タイトル(2行)。背景にポスターのロゴが入ったら、DRAW_TITLE を false にする
     if(DRAW_TITLE){ c.save(); c.shadowColor='rgba(0,0,0,.55)'; c.shadowBlur=14; c.shadowOffsetY=4;
@@ -241,10 +259,14 @@ details summary{cursor:pointer;font-size:13px;color:var(--muted)}
     c.restore(); }
     // リボン
     c.save(); c.shadowColor='rgba(60,0,0,.7)'; c.shadowBlur=8; c.shadowOffsetY=3;
-    arcText(c,monday?'今週スタート！':'昨日までの半荘数',540,P.ribbonCy,P.ribbonK*0.55,P.ribbonSize,900,'#fff6dc',P.ribbonSize*(monday?0.0:0.08));
+    arcText(c,result?'先週の結果':(monday?'今週スタート！':'昨日までの半荘数'),540,P.ribbonCy,P.ribbonK*0.55,P.ribbonSize,900,'#fff6dc',P.ribbonSize*(monday?0.0:0.08));
     c.restore();
     // 金の銘板
-    if(monday){
+    if(result){
+      var ps=new Date(weekStart().getTime()-7*86400000), pe=new Date(weekStart().getTime()-86400000);
+      var lb0=mdw(ps)+'〜'+mdw(pe)+'の合計'; txt(c,lb0,P.plCx,P.plLabelY,fit(c,lb0,P.labelSize,700,P.plNumMaxW),700,NAVY,NAVYS);
+      pair(c,'',String(data.prev),'半荘',P.plNumY,P.plNumSize,P.plNumSize*0.26,P.plNumMaxW,P.plCx,NAVY,NAVYS);
+    }else if(monday){
       var lb1=mdw(weekStart())+'〜'+mdw(new Date(weekStart().getTime()+6*86400000))+'の目標'; txt(c,lb1,P.plCx,P.plLabelY,fit(c,lb1,P.labelSize,700,P.plNumMaxW),700,NAVY,NAVYS);
       pair(c,'',String(next),'半荘',P.plNumY,P.plNumSize,P.plNumSize*0.26,P.plNumMaxW,P.plCx,NAVY,NAVYS);
     }else{
@@ -252,7 +274,14 @@ details summary{cursor:pointer;font-size:13px;color:var(--muted)}
       pair(c,'',String(total),'半荘',P.plNumY,P.plNumSize,P.plNumSize*0.26,P.plNumMaxW,P.plCx,NAVY,NAVYS);
     }
     // 銀の台
-    if(monday){
+    if(result){
+      var up=data.steps.filter(function(x){return x>data.prev;})[0];
+      var l1=up?(up+'半荘まで、あと'+(up-data.prev)+'半荘でした'):'先週は、すべての段を達成！';
+      var l2=up?('今週こそ、'+up+'半荘！'):'今週も、みんなで！';
+      txt(c,l1,P.stCx,P.stLineY,fit(c,l1,P.stLineSize,700,P.stMaxW+20),700,NAVY,NAVYS);
+      var n2=Array.from(l2).length, sz2=Math.min(P.slogSize,Math.floor((P.stMaxW+10-(n2-1)*2)/n2));
+      slogLine(c,l2,P.stCx,P.stPairY-6,sz2,2);
+    }else if(monday){
       var sz=P.slogSize, lh=sz*1.28, cy=P.stCy;
       slogLine(c,'みんなで打って、',P.stCx+sz*0.15,cy-lh/2+sz*0.36,sz,2);
       slogLine(c,'みんなでクーポン！',P.stCx,cy+lh/2+sz*0.36,sz,2);
@@ -365,6 +394,10 @@ details summary{cursor:pointer;font-size:13px;color:var(--muted)}
   $('minus').onclick=function(){ data.total=Math.max(0,data.total-1); refresh(); };
   $('next').addEventListener('change',function(){ data.next=+$('next').value; draw(); });
   $('refetch').onclick=function(){ fetchData(); };
+  function showView(){ $('view').value=data.view; $('prevBox').style.display=data.view==='result'?'':'none'; $('prevCount').innerHTML=data.prev+'<small>半荘</small>'; }
+  $('view').addEventListener('change',function(){ data.view=$('view').value; showView(); draw(); });
+  $('prevPlus').onclick=function(){ data.prev=Math.min(999,data.prev+1); showView(); draw(); };
+  $('prevMinus').onclick=function(){ data.prev=Math.max(0,data.prev-1); showView(); draw(); };
   $('saveCfg').onclick=function(){ lsSet('sd_url',$('url').value.trim()); lsSet('sd_pin',$('pin').value); $('cfg').open=false; fetchData(); };
   $('saveStory').onclick=function(){ save('s',this); };
   $('saveLine').onclick=function(){ save('l',this); };
@@ -374,6 +407,8 @@ details summary{cursor:pointer;font-size:13px;color:var(--muted)}
     document.body.style.padding='0'; document.body.appendChild(cv);
     cv.style.cssText='display:block;width:1080px;max-width:none;border-radius:0';
   }
+  if(qs.get('view')==='result'){ data.view='result'; data.prev=+qs.get('prev')||0; }
+  showView();
   setMode(mode);
   fetchData();
 })();
