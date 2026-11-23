@@ -278,9 +278,10 @@ details summary{cursor:pointer;font-size:13px;color:var(--muted)}
       var up=data.steps.filter(function(x){return x>data.prev;})[0];
       var l1=up?(up+'半荘まで、あと'+(up-data.prev)+'半荘でした'):'先週は、すべての段を達成！';
       var l2=up?('今週こそ、'+up+'半荘！'):'今週も、みんなで！';
-      txt(c,l1,P.stCx,P.stLineY,fit(c,l1,P.stLineSize,700,P.stMaxW+20),700,NAVY,NAVYS);
+      var dy1=(m==='s')?-30:0, dy2=(m==='s')?-62:0; // ストーリーは、下のUI(下20%)に2行目がかからないよう上げる
+      txt(c,l1,P.stCx,P.stLineY+dy1,fit(c,l1,P.stLineSize+4,700,P.stMaxW+20),700,NAVY,NAVYS);
       var n2=Array.from(l2).length, sz2=Math.min(P.slogSize,Math.floor((P.stMaxW+10-(n2-1)*2)/n2));
-      slogLine(c,l2,P.stCx,P.stPairY-6,sz2,2);
+      slogLine(c,l2,P.stCx,P.stPairY-6+dy2,sz2,2);
     }else if(monday){
       var sz=P.slogSize, lh=sz*1.28, cy=P.stCy;
       slogLine(c,'みんなで打って、',P.stCx+sz*0.15,cy-lh/2+sz*0.36,sz,2);
